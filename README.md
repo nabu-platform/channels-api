@@ -2,7 +2,7 @@
 
 Where data transactions is merely concerned with providing a log-based facsimile to actual transactions, channels uses that concept and actually allows you to move data around.
 
-A channel is a configured pathway in or out of the system (or both directions) for data. While it sounds simple, there are actually a **lot** of considerations to be made.
+A channel is a configured pathway in or out of the system (or both directions) for data. While it sounds simple, there are actually a lot of considerations to be made.
 
 ## Basics
 
@@ -14,7 +14,7 @@ To start we need to know two concepts:
 The configuration of a simple directory poller looks like this:
 
 ```xml
-<channels xmlns="##default" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<channels xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<provider>
 		<name>file+dir</name>
 		<providerClass>be.nabu.libs.channels.resources.DirectoryInProvider</providerClass>
@@ -60,7 +60,7 @@ The boolean `continueOnFailure` will determine in such a multi-channel scenario 
 
 The default channel orchestrator requires a contextual writable data store that takes a string as context.
 For each channel it runs, it will scope the datastore to the context of the channel. This means you can redirect your data per channel or per group of channels to a different backend.
-Proper contextual naming is of course key. A possible approach could be "<application>.<process>.<name>"
+Proper contextual naming is of course key. A possible approach could be `<application>.<process>.<name>`
 That way you can redirect all the data for a given application to a certain backend or all the data for a process or even as specific as a channel.
 
 ## Batch Management
