@@ -34,8 +34,8 @@ The configuration of a simple directory poller looks like this:
 			<uri>file:/path/to/somewhere</uri>
 			<principal xsi:nil="true" />
 			<mustExist xsi:nil="true" />
-			<processedDirectory xsi:nil="true" />
-			<deleteOriginal>true</deleteOriginal>
+			<processedDirectory>../processed</processedDirectory>
+			<deleteOriginal xsi:nil="true" />
 			<processedExtension xsi:nil="true" />
 			<fileRegex>.*\.txt</fileRegex>
 			<recursive>false</recursive>
@@ -171,3 +171,65 @@ The `ChannelOrchestrator` requires a `ChannelResultHandler` which will -dependin
 You can implement this interface but then you **must** call the `done()` method on the handle yourself to finish the transaction.
 
 Alternatively you can implement `SingleChannelResultHandler` which will give you exactly 1 data transaction (**not** a handle to one) which you can wrap using `ChannelUtils.newChannelResultHandler()`. It will be wrapped in a default result handler that will call `done()` or `fail()` as necessary.
+
+## Example
+
+Suppose we want to actually run the channel we have defined in the configuration above. Note that you need the channel-resources implementation to run this specific example.
+
+First let's define a very simple result handler that will do something with the resulting data:
+
+```java
+public class ExampleChannelResultHandler implements SingleChannelResultHandler {
+	@Override
+	public void handle(DataTransaction<?> transaction) {
+		System.out.println("Received data: " + transaction.getResponse());
+	}
+}
+```
+
+Next, given the path in the config `file:/path/to/somewhere`, drop one or more files in there with a ".txt" extension (or any extension really, just make sure it matches the configured fileRegex).
+
+Then we need a bit of code. Most of this code should be globally set up (like the datastore, the transaction provider etc) but let's go through all the steps:
+
+```java
+// We need a datasource to connect to the database
+java.sql.DataSource datasource = ...;
+
+// The datastore where we will store the incoming data
+ContextualWritableDatastore<String> datastore = new ResourceDatastore<String>();
+// Let's set a URN manager to map URLs to URNs
+datastore.setUrnManager(new DatabaseURNManager(datasource, TimeZone.getDefault(), "com.mycompany.eai"));
+
+// We need a data transaction implementation
+DataTransactionProvider transactionProvider = new DatabaseTransactionProvider(datasource, TimeZone.getDefault());
+
+// We need to load our channel configuration
+InputStream configurationData = ...
+ChannelManagerConfiguration configuration = new ChannelResourceConfiguration().unmarshal(configurationData);
+
+// We need an orchestrator
+ChannelOrchestrator orchestrator = ChannelUtils.newOrchestrator(datastore, transactionProvider);
+
+// Now we need to run the channel
+orchestrator.transact(
+	ChannelUtils.newChannelManager(configuration),
+	"someContext", 
+	Direction.IN, 
+	ChannelUtils.newChannelResultHandler(new ExampleChannelResultHandler())
+);
+```
+
+At this point you should see several things. The most visible is that for each file in the folder you have some output in your console stating:
+
+```
+Received data: urn:com.mycompany.eai:<yyyy/MM/dd>-<uuid>
+```
+
+The files on your file system have been moved to `file:/path/to/processed`.
+
+If you then check your database, you can do `select * from urns` which yields you one entry per picked up file. You can see the URNs outputted to your console and their corresponding URLs.
+
+Next run `select * from data_transactions` which shows you one data transaction per picked up file, all in the state DONE with transactionality set to THREE_PHASE (this is the default).
+The response in the datatransactions will match the URNs you see in your console.
+
+Lastly you can run `select * from data_transaction_properties` which will show you the properties per picked up file.
