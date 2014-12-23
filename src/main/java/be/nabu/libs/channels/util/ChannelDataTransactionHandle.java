@@ -9,6 +9,7 @@ import be.nabu.libs.channels.api.ChannelResultHandler;
 import be.nabu.libs.channels.api.TwoPhaseChannelProvider;
 import be.nabu.libs.datatransactions.api.DataTransaction;
 import be.nabu.libs.datatransactions.api.DataTransactionHandle;
+import be.nabu.libs.datatransactions.api.DataTransactionState;
 
 public class ChannelDataTransactionHandle<T> implements DataTransactionHandle {
 
@@ -16,12 +17,14 @@ public class ChannelDataTransactionHandle<T> implements DataTransactionHandle {
 	private ChannelProvider<T> provider;
 	private T properties;
 	private ChannelResultHandler resultHandler;
+	private boolean pushFailedTransactions;
 
-	public ChannelDataTransactionHandle(ChannelResultHandler resultHandler, ChannelProvider<T> provider, T properties, DataTransactionHandle handle) {
+	public ChannelDataTransactionHandle(ChannelResultHandler resultHandler, ChannelProvider<T> provider, T properties, DataTransactionHandle handle, boolean pushFailedTransactions) {
 		this.resultHandler = resultHandler;
 		this.provider = provider;
 		this.properties = properties;
 		this.handle = handle;
+		this.pushFailedTransactions = pushFailedTransactions;
 	}
 	
 	@Override
@@ -40,7 +43,9 @@ public class ChannelDataTransactionHandle<T> implements DataTransactionHandle {
 			}
 			catch (ChannelException e) {
 				handle.fail("Could not execute second phase of provider: " + e.getMessage());
-				throw new IOException(e);
+				if (pushFailedTransactions) {
+					resultHandler.handle(handle);
+				}
 			}
 		}
 		// then push it to the result handler
@@ -54,6 +59,13 @@ public class ChannelDataTransactionHandle<T> implements DataTransactionHandle {
 
 	@Override
 	public void fail(String message) throws IOException {
+		// You can configure in general whether or not you want to push failed transactions to your receiving code
+		// You may want to use a custom error alerting framework, create an error process,...
+		// However we only do this if the transaction is in the STARTED state because after the commit, it is assumed that you already have access to the transaction and it is your own custom code that is failing
+		boolean pushThisTransaction = this.pushFailedTransactions && DataTransactionState.STARTED.equals(handle.getTransaction().getState());
 		handle.fail(message);
+		if (pushThisTransaction) {
+			resultHandler.handle(handle);
+		}
 	}
 }

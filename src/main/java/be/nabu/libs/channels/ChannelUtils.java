@@ -19,7 +19,7 @@ import be.nabu.libs.datatransactions.api.ProviderResolver;
 public class ChannelUtils {
 	
 	public static DataTransactionBatch<ChannelProvider<?>> manage(DataTransactionBatch<ChannelProvider<?>> batch, ChannelResultHandler resultHandler) {
-		return new ChannelDataTransactionBatch(batch, resultHandler);
+		return new ChannelDataTransactionBatch(batch, resultHandler, true);
 	}
 	
 	public static ChannelOrchestrator newOrchestrator(ContextualWritableDatastore<String> datastore, DataTransactionProvider transactionProvider) {

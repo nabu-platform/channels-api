@@ -29,7 +29,7 @@ import be.nabu.libs.datatransactions.api.Transactionality;
 
 public class ChannelOrchestratorImpl implements ChannelOrchestrator {
 	
-	private boolean useSingleBatch = false;
+	private boolean useSingleBatch = false, pushFailedTransactions = true;
 	private ChannelRewriter rewriter;
 	private ContextualWritableDatastore<String> datastore;
 	private DataTransactionProvider transactionProvider;
@@ -66,7 +66,7 @@ public class ChannelOrchestratorImpl implements ChannelOrchestrator {
 	
 	private void transactAsOneBatch(ChannelManager manager, String context, Direction direction, ChannelResultHandler resultHandler, List<Channel<?>> channels, URI...requests) throws ChannelException {
 		LimitedSizeChannelResultHandler limitedSizeChannelResultHandler = new LimitedSizeChannelResultHandler(resultHandler, getCommonFinishAmount(channels));
-		DataTransactionBatch<ChannelProvider<?>> batch = new ChannelDataTransactionBatch(transactionProvider.newBatch(new ChannelProviderResolver(manager), context, DataTransactionUtils.generateCreatorId(), null, direction, getCommonTransactionality(channels)), limitedSizeChannelResultHandler);
+		DataTransactionBatch<ChannelProvider<?>> batch = new ChannelDataTransactionBatch(transactionProvider.newBatch(new ChannelProviderResolver(manager), context, DataTransactionUtils.generateCreatorId(), null, direction, getCommonTransactionality(channels)), limitedSizeChannelResultHandler, pushFailedTransactions);
 		ChannelException exception = null;
 		try {
 			for (Channel<?> channel : channels) {
@@ -95,7 +95,7 @@ public class ChannelOrchestratorImpl implements ChannelOrchestrator {
 		ChannelException exception = null;
 		for (Channel<?> channel : channels) {
 			LimitedSizeChannelResultHandler limitedSizeChannelResultHandler = new LimitedSizeChannelResultHandler(resultHandler, channel.getFinishAmount());
-			DataTransactionBatch<ChannelProvider<?>> batch = new ChannelDataTransactionBatch(transactionProvider.newBatch(new ChannelProviderResolver(manager), channel.getContext(), creatorId, null, direction, channel.getTransactionality()), limitedSizeChannelResultHandler);
+			DataTransactionBatch<ChannelProvider<?>> batch = new ChannelDataTransactionBatch(transactionProvider.newBatch(new ChannelProviderResolver(manager), channel.getContext(), creatorId, null, direction, channel.getTransactionality()), limitedSizeChannelResultHandler, pushFailedTransactions);
 			try {
 				ChannelException channelException = transactSingleChannel(manager, context, limitedSizeChannelResultHandler, channel, batch, requests);
 				if (channelException != null) {
@@ -177,12 +177,20 @@ public class ChannelOrchestratorImpl implements ChannelOrchestrator {
 		return finishAmount;
 	}
 	
-	boolean isUseSingleBatch() {
+	public boolean isUseSingleBatch() {
 		return useSingleBatch;
 	}
 
-	void setUseSingleBatch(boolean useSingleBatch) {
+	public void setUseSingleBatch(boolean useSingleBatch) {
 		this.useSingleBatch = useSingleBatch;
+	}
+	
+	public boolean isPushFailedTransactions() {
+		return pushFailedTransactions;
+	}
+
+	public void setPushFailedTransactions(boolean pushFailedTransactions) {
+		this.pushFailedTransactions = pushFailedTransactions;
 	}
 
 	private List<Channel<?>> rewrite(List<Channel<?>> channels) {

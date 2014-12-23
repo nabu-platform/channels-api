@@ -12,16 +12,18 @@ public class ChannelDataTransactionBatch implements DataTransactionBatch<Channel
 
 	private DataTransactionBatch<ChannelProvider<?>> batch;
 	private ChannelResultHandler resultHandler;
+	private boolean pushFailedTransactions;
 
-	public ChannelDataTransactionBatch(DataTransactionBatch<ChannelProvider<?>> batch, ChannelResultHandler resultHandler) {
+	public ChannelDataTransactionBatch(DataTransactionBatch<ChannelProvider<?>> batch, ChannelResultHandler resultHandler, boolean pushFailedTransactions) {
 		this.batch = batch;
 		this.resultHandler = resultHandler;
+		this.pushFailedTransactions = pushFailedTransactions;
 	}
 	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	public <P> DataTransactionHandle start(ChannelProvider<?> provider, P properties, URI request) throws IOException {
-		return new ChannelDataTransactionHandle(resultHandler, provider, properties, batch.start(provider, properties, request));
+		return new ChannelDataTransactionHandle(resultHandler, provider, properties, batch.start(provider, properties, request), pushFailedTransactions);
 	}
 
 	@Override
