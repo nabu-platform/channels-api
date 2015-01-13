@@ -22,11 +22,11 @@ public class ChannelOrchestratorFactory {
 	
 	private ChannelOrchestrator channelOrchestrator;
 	
-	public void setChannelManager(ChannelOrchestrator channelOrchestrator) {
+	public void setChannelOrchestrator(ChannelOrchestrator channelOrchestrator) {
 		this.channelOrchestrator = channelOrchestrator;
 	}
 	
-	public void unsetChannelManager(ChannelOrchestrator channelOrchestrator) {
+	public void unsetChannelOrchestrator(ChannelOrchestrator channelOrchestrator) {
 		this.channelOrchestrator = null;
 	}
 
