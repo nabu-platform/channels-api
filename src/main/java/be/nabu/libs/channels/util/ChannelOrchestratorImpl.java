@@ -66,7 +66,7 @@ public class ChannelOrchestratorImpl implements ChannelOrchestrator {
 	
 	private void transactAsOneBatch(ChannelManager manager, String context, Direction direction, ChannelResultHandler resultHandler, List<Channel<?>> channels, URI...requests) throws ChannelException {
 		LimitedSizeChannelResultHandler limitedSizeChannelResultHandler = new LimitedSizeChannelResultHandler(resultHandler, getCommonFinishAmount(channels));
-		DataTransactionBatch<ChannelProvider<?>> batch = new ChannelDataTransactionBatch(transactionProvider.newBatch(new ChannelProviderResolver(manager), context, DataTransactionUtils.generateCreatorId(), null, direction, getCommonTransactionality(channels)), limitedSizeChannelResultHandler, pushFailedTransactions);
+		DataTransactionBatch<ChannelProvider<?>> batch = new ChannelDataTransactionBatch(transactionProvider.newBatch(manager.getProviderResolver(), context, DataTransactionUtils.generateCreatorId(), null, manager.getResultHandlerResolver().getId(resultHandler), direction, getCommonTransactionality(channels)), limitedSizeChannelResultHandler, pushFailedTransactions);
 		ChannelException exception = null;
 		try {
 			for (Channel<?> channel : channels) {
@@ -95,7 +95,7 @@ public class ChannelOrchestratorImpl implements ChannelOrchestrator {
 		ChannelException exception = null;
 		for (Channel<?> channel : channels) {
 			LimitedSizeChannelResultHandler limitedSizeChannelResultHandler = new LimitedSizeChannelResultHandler(resultHandler, channel.getFinishAmount());
-			DataTransactionBatch<ChannelProvider<?>> batch = new ChannelDataTransactionBatch(transactionProvider.newBatch(new ChannelProviderResolver(manager), channel.getContext(), creatorId, null, direction, channel.getTransactionality()), limitedSizeChannelResultHandler, pushFailedTransactions);
+			DataTransactionBatch<ChannelProvider<?>> batch = new ChannelDataTransactionBatch(transactionProvider.newBatch(manager.getProviderResolver(), channel.getContext(), creatorId, null, manager.getResultHandlerResolver().getId(resultHandler), direction, channel.getTransactionality()), limitedSizeChannelResultHandler, pushFailedTransactions);
 			try {
 				ChannelException channelException = transactSingleChannel(manager, context, limitedSizeChannelResultHandler, channel, batch, requests);
 				if (channelException != null) {
@@ -136,7 +136,7 @@ public class ChannelOrchestratorImpl implements ChannelOrchestrator {
 				}
 			}
 			try {
-				ChannelProvider provider = manager.getProviders().get(channel.getProviderId());
+				ChannelProvider provider = manager.getProviderResolver().getProvider(channel.getProviderId());
 				provider.transact(channel.getProperties(), DatastoreUtils.scope(datastore, channel.getContext()), batch, requests);
 				// stop the retry loop
 				break;
@@ -210,7 +210,7 @@ public class ChannelOrchestratorImpl implements ChannelOrchestrator {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
-	public void recover(ProviderResolver<ChannelProvider<?>> providerResolver, Date from, ChannelRecoverySelector selector, ChannelResultHandler resultHandler) throws IOException {
+	public void recover(ProviderResolver<ChannelProvider<?>> providerResolver, ProviderResolver<ChannelResultHandler> resultHandlerResolver, Date from, ChannelRecoverySelector selector) throws IOException {
 		for (DataTransaction<?> transaction : transactionProvider.getPendingTransactions(creatorId, from)) {
 			if (selector.recover(transaction)) {
 				DataTransactionHandle handle = transactionProvider.getHandle(transaction.getId());
@@ -233,6 +233,10 @@ public class ChannelOrchestratorImpl implements ChannelOrchestrator {
 						// if it's a twophase, run the second phase again to be sure
 						if (provider instanceof TwoPhaseChannelProvider) {
 							((TwoPhaseChannelProvider) provider).finish(transaction.getProperties());
+						}
+						ChannelResultHandler resultHandler = resultHandlerResolver.getProvider(transaction.getHandlerId());
+						if (resultHandler == null) {
+							throw new IllegalArgumentException("Could not find result handler: " + transaction.getHandlerId());
 						}
 						// then run the handler
 						resultHandler.handle(handle);

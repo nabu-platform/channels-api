@@ -5,10 +5,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import be.nabu.libs.channels.ChannelUtils;
 import be.nabu.libs.channels.api.Channel;
 import be.nabu.libs.channels.api.ChannelManager;
 import be.nabu.libs.channels.api.ChannelProvider;
+import be.nabu.libs.channels.api.ChannelResultHandler;
 import be.nabu.libs.channels.util.ChannelManagerConfiguration.ChannelProviderConfiguration;
+import be.nabu.libs.datatransactions.api.ProviderResolver;
 
 public class ChannelManagerImpl implements ChannelManager {
 
@@ -19,7 +22,6 @@ public class ChannelManagerImpl implements ChannelManager {
 		this.configuration = configuration;
 	}
 	
-	@Override
 	public Map<String, ChannelProvider<?>> getProviders() {
 		if (providers == null) {
 			providers = new HashMap<String, ChannelProvider<?>>();
@@ -65,5 +67,30 @@ public class ChannelManagerImpl implements ChannelManager {
 
 	public ChannelManagerConfiguration getConfiguration() {
 		return configuration;
+	}
+	
+	@Override
+	public ProviderResolver<ChannelProvider<?>> getProviderResolver() {
+		return new ProviderResolver<ChannelProvider<?>>() {
+			@Override
+			public String getId(ChannelProvider<?> provider) {
+				for (String id : getProviders().keySet()) {
+					if (getProviders().get(id).equals(provider)) {
+						return id;
+					}
+				}
+				throw new IllegalArgumentException("Can not find the provider " + provider);
+			}
+
+			@Override
+			public ChannelProvider<?> getProvider(String id) {
+				return getProviders().get(id);
+			}
+		};
+	}
+
+	@Override
+	public ProviderResolver<ChannelResultHandler> getResultHandlerResolver() {
+		return ChannelUtils.newChannelResultHandlerResolver();
 	}
 }

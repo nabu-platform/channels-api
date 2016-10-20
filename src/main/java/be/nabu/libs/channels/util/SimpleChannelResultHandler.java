@@ -33,4 +33,8 @@ public class SimpleChannelResultHandler implements ChannelResultHandler {
 		}
 	}
 
+	public SingleChannelResultHandler getHandler() {
+		return handler;
+	}
+	
 }
