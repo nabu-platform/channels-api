@@ -69,7 +69,7 @@ public class ChannelOrchestratorImpl implements ChannelOrchestrator {
 	
 	private void transactAsOneBatch(ChannelManager manager, String context, Direction direction, ChannelResultHandler resultHandler, List<Channel<?>> channels, URI...requests) throws ChannelException {
 		LimitedSizeChannelResultHandler limitedSizeChannelResultHandler = new LimitedSizeChannelResultHandler(resultHandler, getCommonFinishAmount(channels));
-		DataTransactionBatch<ChannelProvider<?>> batch = new ChannelDataTransactionBatch(transactionProvider.newBatch(manager.getProviderResolver(), context, DataTransactionUtils.generateCreatorId(), null, manager.getResultHandlerResolver().getId(resultHandler), direction, getCommonTransactionality(channels)), limitedSizeChannelResultHandler, pushFailedTransactions);
+		DataTransactionBatch<ChannelProvider<?>> batch = new ChannelDataTransactionBatch(transactionProvider.newBatch(manager.getProviderResolver(), context, creatorId, null, manager.getResultHandlerResolver().getId(resultHandler), direction, getCommonTransactionality(channels)), limitedSizeChannelResultHandler, pushFailedTransactions);
 		ChannelException exception = null;
 		try {
 			for (Channel<?> channel : channels) {
