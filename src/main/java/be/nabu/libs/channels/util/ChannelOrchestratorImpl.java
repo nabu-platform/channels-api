@@ -36,9 +36,12 @@ public class ChannelOrchestratorImpl implements ChannelOrchestrator {
 	private String creatorId;
 	
 	public ChannelOrchestratorImpl(ContextualWritableDatastore<String> datastore, DataTransactionProvider transactionProvider) {
+		this(datastore, transactionProvider, DataTransactionUtils.generateCreatorId());
+	}
+	public ChannelOrchestratorImpl(ContextualWritableDatastore<String> datastore, DataTransactionProvider transactionProvider, String creatorId) {
 		this.datastore = datastore;
 		this.transactionProvider = transactionProvider;
-		this.creatorId = DataTransactionUtils.generateCreatorId();
+		this.creatorId = creatorId;
 	}
 	
 	@Override
