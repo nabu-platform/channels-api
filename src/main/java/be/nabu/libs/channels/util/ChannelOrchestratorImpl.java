@@ -103,9 +103,11 @@ public class ChannelOrchestratorImpl implements ChannelOrchestrator {
 				ChannelException channelException = transactSingleChannel(manager, context, limitedSizeChannelResultHandler, channel, batch, requests);
 				if (channelException != null) {
 					if (exception == null) {
-						exception = new ChannelException();
+						exception = channelException;
 					}
-					exception.addSuppressedException(channelException);
+					else {
+						exception.addSuppressedException(channelException);
+					}
 					if (!channel.isContinueOnFailure()) {
 						throw exception;
 					}
@@ -146,9 +148,11 @@ public class ChannelOrchestratorImpl implements ChannelOrchestrator {
 			}
 			catch (ChannelException e) {
 				if (exception == null) {
-					exception = new ChannelException();
+					exception = e;
 				}
-				exception.addSuppressedException(e);
+				else {
+					exception.addSuppressedException(e);
+				}
 			}
 		}
 		return exception;
