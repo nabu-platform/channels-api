@@ -15,5 +15,5 @@ import be.nabu.libs.datatransactions.api.ProviderResolver;
  */
 public interface ChannelOrchestrator {
 	public void transact(ChannelManager manager, String context, Direction direction, ChannelResultHandler resultHandler, URI...requests) throws ChannelException;
-	public void recover(ProviderResolver<ChannelProvider<?>> provider, ProviderResolver<ChannelResultHandler> resultHandlerResolver, Date from, ChannelRecoverySelector selector) throws IOException;
+	public void recover(ProviderResolver<ChannelProvider<?>> provider, ProviderResolver<ChannelResultHandler> resultHandlerResolver, Date from, ChannelRecoverySelector selector) throws IOException, ChannelException;
 }

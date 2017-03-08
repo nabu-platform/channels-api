@@ -1,6 +1,8 @@
 package be.nabu.libs.channels.util;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Date;
@@ -217,7 +219,8 @@ public class ChannelOrchestratorImpl implements ChannelOrchestrator {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
-	public void recover(ProviderResolver<ChannelProvider<?>> providerResolver, ProviderResolver<ChannelResultHandler> resultHandlerResolver, Date from, ChannelRecoverySelector selector) throws IOException {
+	public void recover(ProviderResolver<ChannelProvider<?>> providerResolver, ProviderResolver<ChannelResultHandler> resultHandlerResolver, Date from, ChannelRecoverySelector selector) throws IOException, ChannelException {
+		ChannelException exception = null;
 		for (DataTransaction<?> transaction : transactionProvider.getPendingTransactions(creatorId, from)) {
 			if (selector.recover(transaction)) {
 				DataTransactionHandle handle = transactionProvider.getHandle(transaction.getId());
@@ -249,14 +252,27 @@ public class ChannelOrchestratorImpl implements ChannelOrchestrator {
 						resultHandler.handle(handle);
 					}
 				}
-				catch (Exception e) {
-					handle.fail("Error occurred while recovering: " + e.getMessage());
+				catch (ChannelException e) {
+					StringWriter writer = new StringWriter();
+					PrintWriter printer = new PrintWriter(writer);
+					e.printStackTrace(printer);
+					printer.flush();
+					handle.fail(writer.toString());
+					if (exception == null) {
+						exception = e;
+					}
+					else {
+						exception.addSuppressed(e);
+					}
 				}
 			}
 			// if the transaction is not in the state DONE but you still decide not to recover it, fail it
 			else if (!DataTransactionState.DONE.equals(transaction.getState())) {
 				transactionProvider.getHandle(transaction.getId()).fail("Explicitly not recovered");
 			}
+		}
+		if (exception != null) {
+			throw exception;
 		}
 	}
 }
