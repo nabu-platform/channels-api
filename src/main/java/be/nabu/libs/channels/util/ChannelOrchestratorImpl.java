@@ -16,6 +16,7 @@ import be.nabu.libs.channels.api.ChannelProvider;
 import be.nabu.libs.channels.api.ChannelRecoverySelector;
 import be.nabu.libs.channels.api.ChannelResultHandler;
 import be.nabu.libs.channels.api.ChannelRewriter;
+import be.nabu.libs.channels.api.SingleChannelResultHandler;
 import be.nabu.libs.channels.api.TwoPhaseChannelProvider;
 import be.nabu.libs.datastore.DatastoreUtils;
 import be.nabu.libs.datastore.api.ContextualWritableDatastore;
@@ -124,18 +125,57 @@ public class ChannelOrchestratorImpl implements ChannelOrchestrator {
 		}
 	}
 	
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public ChannelException transact(ChannelManager manager, String providerId, Object properties, String context, ChannelResultHandler resultHandler, Transactionality transactionality, Integer finishAmount, 
+			int retryAmount, long retryInterval, URI...requests) {
+		if (finishAmount != null && resultHandler != null) {
+			resultHandler = new LimitedSizeChannelResultHandler(resultHandler, finishAmount);
+		}
+		DataTransactionBatch<ChannelProvider<?>> batch = new ChannelDataTransactionBatch(transactionProvider.newBatch(
+				manager.getProviderResolver(), 
+				context, 
+				creatorId, 
+				null, 
+				resultHandler == null ? null : manager.getResultHandlerResolver().getId(resultHandler), 
+				requests == null || requests.length == 0 ? Direction.IN : Direction.OUT, 
+				transactionality == null ? Transactionality.THREE_PHASE : transactionality
+			), 
+			resultHandler == null ? new SimpleChannelResultHandler(new SingleChannelResultHandler() {
+				@Override
+				public void handle(DataTransaction<?> transaction) throws ChannelException {
+					// do nothing
+				}
+			}) : resultHandler, 
+			pushFailedTransactions
+		);
+		ChannelException exception;
+		try {
+			exception = transactSingleChannel(manager, context, resultHandler, providerId, retryAmount, retryInterval, properties, batch, requests);
+		}
+		finally {
+			if (resultHandler instanceof LimitedSizeChannelResultHandler) {
+				((LimitedSizeChannelResultHandler) resultHandler).flush();
+			}
+		}
+		return exception;
+	}
+	
+	@SuppressWarnings({ "rawtypes" })
 	private ChannelException transactSingleChannel(ChannelManager manager, String context, ChannelResultHandler resultHandler, Channel channel, DataTransactionBatch batch, URI...requests) {
+		return this.transactSingleChannel(manager, channel.getContext(), resultHandler, channel.getProviderId(), channel.getRetryAmount(), channel.getRetryInterval(), channel.getProperties(), batch, requests);
+	}
+	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	private ChannelException transactSingleChannel(ChannelManager manager, String context, ChannelResultHandler resultHandler, String providerId, int retryAmount, long retryInterval, Object properties, DataTransactionBatch batch, URI...requests) {
 		if (requests.length == 0) {
 			requests = new URI[] { null };
 		}
 		ChannelException exception = null;
 		// run 1 more time than the retry amount, the first is a try, not a retry
-		for (int retried = 0; retried < channel.getRetryAmount() + 1; retried++) {
+		for (int retried = 0; retried < retryAmount + 1; retried++) {
 			// if this is a retry, do a sleep first
 			if (retried > 0) {
 				try {
-					Thread.sleep(channel.getRetryInterval());
+					Thread.sleep(retryInterval);
 				}
 				catch (InterruptedException e) {
 					// stop
@@ -143,8 +183,8 @@ public class ChannelOrchestratorImpl implements ChannelOrchestrator {
 				}
 			}
 			try {
-				ChannelProvider provider = manager.getProviderResolver().getProvider(channel.getProviderId());
-				provider.transact(channel.getProperties(), DatastoreUtils.scope(datastore, channel.getContext()), batch, requests);
+				ChannelProvider provider = manager.getProviderResolver().getProvider(providerId);
+				provider.transact(properties, DatastoreUtils.scope(datastore, context), batch, requests);
 				// stop the retry loop
 				break;
 			}

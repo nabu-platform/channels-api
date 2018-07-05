@@ -43,7 +43,7 @@ public class ChannelDataTransactionHandle<T> implements DataTransactionHandle {
 			}
 			catch (ChannelException e) {
 				handle.fail("Could not execute second phase of provider: " + e.getMessage());
-				if (pushFailedTransactions) {
+				if (pushFailedTransactions && resultHandler != null) {
 					resultHandler.handle(handle);
 				}
 			}

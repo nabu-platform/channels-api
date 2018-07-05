@@ -1,8 +1,9 @@
 package be.nabu.libs.channels.util;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 
-import be.nabu.libs.channels.api.ChannelException;
 import be.nabu.libs.channels.api.ChannelResultHandler;
 import be.nabu.libs.channels.api.SingleChannelResultHandler;
 import be.nabu.libs.datatransactions.api.DataTransactionHandle;
@@ -23,8 +24,12 @@ public class SimpleChannelResultHandler implements ChannelResultHandler {
 					handler.handle(handle.getTransaction());
 					handle.done();
 				}
-				catch (ChannelException e) {
-					handle.fail(e.getMessage());
+				catch (Exception e) {
+					StringWriter writer = new StringWriter();
+					PrintWriter printer = new PrintWriter(writer);
+					e.printStackTrace(printer);
+					printer.flush();
+					handle.fail(writer.toString());
 				}
 			}
 			catch (IOException e) {
